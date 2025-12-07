@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RequestMapping("/api")
 @RestController
@@ -28,17 +29,39 @@ public class OrderController {
     private UserService userService;
 
     @PostMapping("/order")
-    public ResponseEntity<PaymentResponse> createOrder(
+    public ResponseEntity<?> createOrder(
             @RequestBody OrderRequest req,
-            @RequestHeader("Authorization") String jwt) throws Exception {
+            @RequestHeader("Authorization") String jwt) {
 
-        Users user = userService.findUserByJwtToken(jwt);
-        Order order = orderService.createOrder(req,user);
-        PaymentResponse res = paymentService.createPaymentLink(order);
+        try {
+            System.out.println("==> createOrder called");
 
-        return new ResponseEntity<>(res, HttpStatus.CREATED);
+            Users user = userService.findUserByJwtToken(jwt);
+            System.out.println("==> user resolved: " + user.getEmail());
 
+            Order order = orderService.createOrder(req, user);
+            System.out.println("==> order created: id=" + order.getId() + ", total=" + order.getTotalPrice());
+
+            // TEMP: bypass Stripe to see if order part is OK
+            PaymentResponse res = new PaymentResponse();
+            res.setPayment_url("https://example.com/mock-payment/" + order.getId());
+            System.out.println("==> mock payment response created");
+
+            return new ResponseEntity<>(res, HttpStatus.CREATED);
+
+        } catch (Exception e) {
+            e.printStackTrace(); // will show full stack trace in Render logs
+
+            // return a readable error to frontend
+            return ResponseEntity
+                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of(
+                            "message", e.getMessage(),
+                            "type", e.getClass().getName()
+                    ));
+        }
     }
+
 
     @GetMapping("/order/user")
     public ResponseEntity<List<Order>> getOrderHistory(@RequestHeader("Authorization") String jwt) throws Exception {
