@@ -45,7 +45,7 @@ public class AppConfig {
 
                 // Only allows requests from these two domains.
                 cfg.setAllowedOrigins(Arrays.asList(
-                        "https://sagar-food.vercel.app/",
+                        "https://hungry-hut-frontend-pi.vercel.app",
                         "http://localhost:3000"
                 ));
 
