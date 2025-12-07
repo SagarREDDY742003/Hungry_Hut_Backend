@@ -7,6 +7,7 @@ import com.sagar.response.PaymentResponse;
 import com.sagar.service.UserService;
 import com.sagar.service.order_service.OrderService;
 import com.sagar.service.payment_service.PaymentService;
+import com.stripe.exception.StripeException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,25 +35,23 @@ public class OrderController {
             @RequestHeader("Authorization") String jwt) {
 
         try {
-            System.out.println("==> createOrder called");
-
             Users user = userService.findUserByJwtToken(jwt);
-            System.out.println("==> user resolved: " + user.getEmail());
-
             Order order = orderService.createOrder(req, user);
-            System.out.println("==> order created: id=" + order.getId() + ", total=" + order.getTotalPrice());
 
-            // TEMP: bypass Stripe to see if order part is OK
-            PaymentResponse res = new PaymentResponse();
-            res.setPayment_url("https://example.com/mock-payment/" + order.getId());
-            System.out.println("==> mock payment response created");
+            PaymentResponse res = paymentService.createPaymentLink(order);
 
             return new ResponseEntity<>(res, HttpStatus.CREATED);
 
+        } catch (StripeException e) {
+            e.printStackTrace();
+            return ResponseEntity
+                    .status(HttpStatus.BAD_GATEWAY)
+                    .body(Map.of(
+                            "message", "Stripe payment error: " + e.getMessage(),
+                            "type", e.getClass().getName()
+                    ));
         } catch (Exception e) {
-            e.printStackTrace(); // will show full stack trace in Render logs
-
-            // return a readable error to frontend
+            e.printStackTrace();
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(Map.of(
@@ -61,6 +60,7 @@ public class OrderController {
                     ));
         }
     }
+
 
 
     @GetMapping("/order/user")
